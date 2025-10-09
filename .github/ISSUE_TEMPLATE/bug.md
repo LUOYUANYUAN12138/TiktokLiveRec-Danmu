@@ -16,6 +16,9 @@ labels: bug
 
 
 - 问题描述 / Description of the issue：
+<!--
+如必要请注明你使用的国内版抖音还是海外版抖音 / If necessary, please indicate whether you are using Douyin or Tiktok.
+-->
 
 
 - 复现步骤 / Reproduction steps：
