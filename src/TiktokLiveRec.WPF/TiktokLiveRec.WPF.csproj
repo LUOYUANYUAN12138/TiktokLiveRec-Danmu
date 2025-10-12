@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
@@ -48,7 +48,7 @@
 
     <ItemGroup>
         <Resource Include="Assets\*" />
-        <Content Remove="$(NuGetPackageRoot)lottiesharp\2.4.0\contentFiles\any\net8.0-windows7.0\lottie_sharp.ico" />
+        <Content Remove="$(NuGetPackageRoot)lottiesharp\**\lottie_sharp.ico" />
     </ItemGroup>
 
     <ItemGroup>
