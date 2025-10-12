@@ -54,7 +54,6 @@
     <ItemGroup>
         <PackageReference Include="Antelcat.I18N.WPF" Version="1.1.0" />
         <PackageReference Include="Flucli" Version="0.3.2" />
-        <PackageReference Include="NotifyIconEx" Version="1.1.2" />
         <PackageReference Include="WPF-UI" Version="4.0.3" />
         <PackageReference Include="WPF-UI.Violeta" Version="4.0.3.6" />
         <PackageReference Include="ComputedConverters.WPF" Version="0.5.1" />

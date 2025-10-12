@@ -1,4 +1,5 @@
-﻿using Microsoft.Win32;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.Win32;
 using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
@@ -9,7 +10,7 @@ using TiktokLiveRec.Views;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Violeta.Appearance;
 using Wpf.Ui.Violeta.Resources;
-using NotifyIcon = NotifyIconEx.NotifyIcon;
+using Wpf.Ui.Violeta.Win32;
 
 namespace TiktokLiveRec;
 
@@ -17,89 +18,119 @@ internal class TrayIconManager
 {
     private static TrayIconManager _instance = null!;
 
-    private readonly NotifyIcon _icon = null!;
+    private readonly TrayIconHost _icon = null!;
 
-    private readonly ToolStripMenuItem? _itemAutoRun = null;
+    private readonly TrayMenuItem? _itemAutoRun = null;
 
     public bool IsShutdownTriggered { get; private set; } = false;
 
     private TrayIconManager()
     {
-        _icon = new NotifyIcon()
+        _icon = new TrayIconHost()
         {
-            Text = "TiktokLiveRec",
-            Visible = true
+            ToolTipText = "TiktokLiveRec",
+            Menu =
+            [
+                new TrayMenuItem()
+                {
+                    Header = $"v{Assembly.GetExecutingAssembly().GetName().Version!.ToString(3)}",
+                    IsEnabled = false,
+                },
+                new TraySeparator(),
+                new TrayMenuItem()
+                {
+                   Header = "TrayMenuShowMainWindow".Tr(),
+                   Tag = "TrayMenuShowMainWindow",
+                   Command = new RelayCommand(() =>
+                   {
+                        Application.Current.MainWindow.Show();
+                        Application.Current.MainWindow.Activate();
+                        Interop.RestoreWindow(new WindowInteropHelper(Application.Current.MainWindow).Handle);
+                    }),
+                },
+                new TrayMenuItem()
+                {
+                    Header = "TrayMenuOpenSettings".Tr(),
+                    Tag = "TrayMenuOpenSettings",
+                    Command = new RelayCommand(() =>
+                    {
+                        foreach (Window win in Application.Current.Windows.OfType<SettingsWindow>())
+                        {
+                        win.Close();
+                        }
+
+                        _ = new SettingsWindow()
+                        {
+                        WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                        }.ShowDialog();
+                    }),
+                },
+                _itemAutoRun = new TrayMenuItem()
+                {
+                    Header = "TrayMenuAutoRun".Tr(),
+                    Tag = "TrayMenuAutoRun",
+                    Command = new RelayCommand(() =>
+                    {
+                        if (AutoStartupHelper.IsAutorun())
+                        {
+                            AutoStartupHelper.RemoveAutorunShortcut();
+                        }
+                        else
+                        {
+                            AutoStartupHelper.CreateAutorunShortcut();
+                        }
+                    }),
+                },
+                new TrayMenuItem()
+                {
+                    Header = "TrayMenuRestart".Tr(),
+                    Tag = "TrayMenuRestart",
+                    Command = new RelayCommand(() =>
+                    {
+                        if (GlobalMonitor.RoomStatus.Values.ToArray().Any(roomStatus => roomStatus.RecordStatus == RecordStatus.Recording))
+                        {
+                            if (MessageBox.Question("SureOnRecording".Tr()) == MessageBoxResult.Yes)
+                            {
+                                RuntimeHelper.Restart(forced: true);
+                            }
+                        }
+                        else
+                        {
+                            RuntimeHelper.Restart(forced: true);
+                        }
+                    }),
+                },
+                new TrayMenuItem()
+                {
+                    Header = "TrayMenuExit".Tr(),
+                    Tag = "TrayMenuExit",
+                    Command = new RelayCommand(() =>
+                    {
+                        if (GlobalMonitor.RoomStatus.Values.ToArray().Any(roomStatus => roomStatus.RecordStatus == RecordStatus.Recording))
+                        {
+                            if (MessageBox.Question("SureOnRecording".Tr()) == MessageBoxResult.Yes)
+                            {
+                                IsShutdownTriggered = true;
+                                Application.Current.Shutdown();
+                            }
+                        }
+                        else
+                        {
+                            IsShutdownTriggered = true;
+                            Application.Current.Shutdown();
+                        }
+                    }),
+                },
+            ],
         };
         UpdateTrayIcon();
-        _icon.AddMenu($"v{Assembly.GetExecutingAssembly().GetName().Version!.ToString(3)}").Enabled = false;
-        _icon.AddMenu("-");
-        _icon.AddMenu("TrayMenuShowMainWindow".Tr(), (_, _) =>
-        {
-            Application.Current.MainWindow.Show();
-            Application.Current.MainWindow.Activate();
-            Interop.RestoreWindow(new WindowInteropHelper(Application.Current.MainWindow).Handle);
-        });
-        _icon.AddMenu("TrayMenuOpenSettings".Tr(), (_, _) =>
-        {
-            foreach (Window win in Application.Current.Windows.OfType<SettingsWindow>())
-            {
-                win.Close();
-            }
 
-            _ = new SettingsWindow()
-            {
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            }.ShowDialog();
-        });
-        _itemAutoRun = _icon.AddMenu("TrayMenuAutoRun".Tr(),
-            (_, _) =>
-            {
-                if (AutoStartupHelper.IsAutorun())
-                {
-                    AutoStartupHelper.RemoveAutorunShortcut();
-                }
-                else
-                {
-                    AutoStartupHelper.CreateAutorunShortcut();
-                }
-            }) as ToolStripMenuItem;
-        _icon.AddMenu("TrayMenuRestart".Tr(), (_, _) =>
+        _icon.RightDown += (_, _) =>
         {
-            if (GlobalMonitor.RoomStatus.Values.ToArray().Any(roomStatus => roomStatus.RecordStatus == RecordStatus.Recording))
-            {
-                if (MessageBox.Question("SureOnRecording".Tr()) == MessageBoxResult.Yes)
-                {
-                    RuntimeHelper.Restart(forced: true);
-                }
-            }
-            else
-            {
-                RuntimeHelper.Restart(forced: true);
-            }
-        });
-        _icon.AddMenu("TrayMenuExit".Tr(), (_, _) =>
-        {
-            if (GlobalMonitor.RoomStatus.Values.ToArray().Any(roomStatus => roomStatus.RecordStatus == RecordStatus.Recording))
-            {
-                if (MessageBox.Question("SureOnRecording".Tr()) == MessageBoxResult.Yes)
-                {
-                    IsShutdownTriggered = true;
-                    Application.Current.Shutdown();
-                }
-            }
-            else
-            {
-                IsShutdownTriggered = true;
-                Application.Current.Shutdown();
-            }
-        });
-
-        _icon.ContextMenuStrip.Opened += (_, _) =>
-        {
-            _itemAutoRun!.Checked = AutoStartupHelper.IsAutorun();
+            _itemAutoRun.IsChecked = AutoStartupHelper.IsAutorun();
         };
 
-        _icon.MouseDoubleClick += (_, _) =>
+        _icon.LeftDoubleClick += (_, _) =>
         {
             if (Application.Current.MainWindow.IsVisible)
             {
@@ -115,27 +146,11 @@ internal class TrayIconManager
 
         Locale.CultureChanged += (_, _) =>
         {
-            foreach (ToolStripItem item in _icon.ContextMenuStrip.Items)
+            foreach (ITrayMenuItemBase item in _icon.Menu.Items)
             {
-                if (item.Text?.Contains("(&V)") ?? false)
+                if (item.Tag is string trKey)
                 {
-                    item.Text = "TrayMenuShowMainWindow".Tr();
-                }
-                else if (item.Text?.Contains("(&S)") ?? false)
-                {
-                    item.Text = "TrayMenuOpenSettings".Tr();
-                }
-                else if (item.Text?.Contains("(&A)") ?? false)
-                {
-                    item.Text = "TrayMenuAutoRun".Tr();
-                }
-                else if (item.Text?.Contains("(&R)") ?? false)
-                {
-                    item.Text = "TrayMenuRestart".Tr();
-                }
-                else if (item.Text?.Contains("(&E)") ?? false)
-                {
-                    item.Text = "TrayMenuExit".Tr();
+                    item.Header = trKey.Tr();
                 }
             }
         };
@@ -164,7 +179,7 @@ internal class TrayIconManager
     {
         _icon.Icon = GetTrayIcon();
 
-        static Icon GetTrayIcon()
+        static nint GetTrayIcon()
         {
             try
             {
@@ -177,14 +192,14 @@ internal class TrayIconManager
                         _ => "Light",
                     };
 
-                    return new Icon(ResourcesProvider.GetStream($"pack://application:,,,/TiktokLiveRec;component/Assets/{status}{theme}.ico"));
+                    return new Icon(ResourcesProvider.GetStream($"pack://application:,,,/TiktokLiveRec;component/Assets/{status}{theme}.ico")).Handle;
                 }
             }
             catch (Exception e)
             {
                 Debug.WriteLine(e);
             }
-            return Icon.ExtractAssociatedIcon(Process.GetCurrentProcess().MainModule?.FileName!)!;
+            return Icon.ExtractAssociatedIcon(Process.GetCurrentProcess().MainModule?.FileName!)!.Handle;
         }
     }
 
