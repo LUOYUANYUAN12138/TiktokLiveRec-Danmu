@@ -210,7 +210,7 @@ internal class TrayIconManager
     {
         var currentTheme =
             Registry.GetValue(
-                "HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes",
+                @"HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes",
                 "CurrentTheme",
                 "aero.theme"
             ) as string
