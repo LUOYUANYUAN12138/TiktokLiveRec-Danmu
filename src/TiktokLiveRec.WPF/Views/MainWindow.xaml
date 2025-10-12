@@ -361,7 +361,7 @@
                 <ui:TitleBar.Icon>
                     <ui:ImageIcon Source="pack://application:,,,/Assets/Favicon.png" />
                 </ui:TitleBar.Icon>
-                <ui:TitleBar.Header>
+                <ui:TitleBar.TrailingContent>
                     <ui:Button Width="44"
                                Height="30"
                                Margin="0,-16,0,0"
@@ -393,7 +393,7 @@
                             <b:LeftContextMenuBehavior />
                         </i:Interaction.Behaviors>
                     </ui:Button>
-                </ui:TitleBar.Header>
+                </ui:TitleBar.TrailingContent>
             </ui:TitleBar>
         </Grid>
     </Grid>

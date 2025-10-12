@@ -1,4 +1,4 @@
-﻿<Application x:Class="TiktokLiveRec.App"
+<Application x:Class="TiktokLiveRec.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:TiktokLiveRec"
@@ -12,6 +12,7 @@
                 <ui:ControlsDictionary />
                 <vio:ThemesDictionary />
                 <vio:ControlsDictionary />
+                <ResourceDictionary Source="pack://application:,,,/Wpf.Ui.Violeta;component/Controls/DataGrid/LegacyDataGrid.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

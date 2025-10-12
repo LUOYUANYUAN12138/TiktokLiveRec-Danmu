@@ -275,7 +275,7 @@ internal static class Interop
     {
         HPROCESS hProc = Kernel32.GetCurrentProcess();
         AdvApi32.OpenProcessToken(hProc, AdvApi32.TokenAccess.TOKEN_ADJUST_PRIVILEGES | AdvApi32.TokenAccess.TOKEN_QUERY, out AdvApi32.SafeHTOKEN hToken);
-        AdvApi32.LookupPrivilegeValue(null, "SeShutdownPrivilege", out AdvApi32.LUID luid);
+        AdvApi32.LookupPrivilegeValue(null, "SeShutdownPrivilege", out LUID luid);
         AdvApi32.AdjustTokenPrivileges(hToken, false, new AdvApi32.TOKEN_PRIVILEGES(luid, AdvApi32.PrivilegeAttributes.SE_PRIVILEGE_ENABLED), out _);
         return User32.ExitWindowsEx(uFlags, SystemShutDownReason.SHTDN_REASON_MAJOR_NONE);
     }

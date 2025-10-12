@@ -16,12 +16,12 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Avalonia" Version="11.2.6" />
-        <PackageReference Include="Avalonia.Skia" Version="11.2.6" />
-        <PackageReference Include="Avalonia.Markup.Xaml.Loader" Version="11.2.6" />
-        <PackageReference Include="FluentAvaloniaUI" Version="2.3.0" />
-        <PackageReference Include="Irihi.Ursa.Themes.Semi" Version="1.10.0" />
-        <PackageReference Include="Semi.Avalonia" Version="11.2.1.6" />
+        <PackageReference Include="Avalonia" Version="11.3.7" />
+        <PackageReference Include="Avalonia.Skia" Version="11.3.7" />
+        <PackageReference Include="Avalonia.Markup.Xaml.Loader" Version="11.3.7" />
+        <PackageReference Include="FluentAvaloniaUI" Version="2.4.0" />
+        <PackageReference Include="Irihi.Ursa.Themes.Semi" Version="1.13.0" />
+        <PackageReference Include="Semi.Avalonia" Version="11.3.7" />
     </ItemGroup>
 
 </Project>
