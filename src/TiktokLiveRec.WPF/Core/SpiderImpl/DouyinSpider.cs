@@ -140,7 +140,7 @@ public sealed partial class DouyinSpider : ISpider
         return result;
     }
 
-    [GeneratedRegex("\\\\\"nickname\\\\\":\\\\\"(.*?)\\\\\",\\\\\"avatar_thumb")]
+    [GeneratedRegex("\\\\\"nickname\\\\\":\\\\\"([^\\\"]+)\\\\\",\\\\\"avatar_thumb")]
     private static partial Regex NickNameRegex { get; }
 
     [GeneratedRegex("avatar_thumb\\\\\":\\{\\\\\"url_list\\\\\":\\[\\\\\"(.*?)\\\\\"")]
