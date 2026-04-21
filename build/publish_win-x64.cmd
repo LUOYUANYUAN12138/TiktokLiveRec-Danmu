@@ -8,6 +8,8 @@ set PUBLISH_DIR=..\src\TiktokLiveRec.WPF\bin\x64\Release\net9.0-windows10.0.2610
 set APP_EXE=%PUBLISH_DIR%\TiktokLiveRec.exe
 set SEVEN_Z=7z
 set MAKEMICA=makemica
+set DOTNET_SDK_LINE=
+set DOTNET_SDK_VERSION=
 
 if exist "%~dp07z.exe" set SEVEN_Z=%~dp07z.exe
 if exist "%~dp0makemica.exe" set MAKEMICA=%~dp0makemica.exe
@@ -37,6 +39,16 @@ if not exist ffplay.exe (
     echo [ERROR] Missing build\ffplay.exe . Place ffplay.exe next to this script before publishing.
     exit /b 1
 )
+
+for /f "delims=" %%i in ('dotnet --list-sdks 2^>nul') do set DOTNET_SDK_LINE=%%i
+if defined DOTNET_SDK_LINE (
+    for /f "tokens=1" %%i in ("%DOTNET_SDK_LINE%") do set DOTNET_SDK_VERSION=%%i
+)
+if defined DOTNET_SDK_VERSION (
+    set DOTNET_ROOT=%ProgramFiles%\dotnet
+    set MSBuildSDKsPath=%DOTNET_ROOT%\sdk\%DOTNET_SDK_VERSION%\Sdks
+)
+set MSBuildEnableWorkloadResolver=false
 
 dotnet publish ..\src\TiktokLiveRec.WPF\TiktokLiveRec.WPF.csproj -c Release -p:PublishProfile=FolderProfile
 if errorlevel 1 exit /b 1
