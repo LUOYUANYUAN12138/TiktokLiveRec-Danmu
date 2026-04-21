@@ -100,13 +100,14 @@ internal static class GlobalMonitor
                 {
                     if (TryGetRoomStatus(room) is RoomStatus roomStatus)
                     {
+                        roomStatus.NickName = string.IsNullOrWhiteSpace(room.NickName) ? roomStatus.NickName : room.NickName;
+
                         // Check Room Settings
                         bool isRoomToNotify = room.IsToNotify;
                         bool isRoomToRecord = room.IsToRecord;
 
                         if ((isGlobalToNotify || isGlobalToRecord) && (isRoomToNotify || isRoomToRecord))
                         {
-                            // Spider Room Status
                             ISpiderResult? spiderResult = Spider.GetResult(room.RoomUrl);
 
                             if (spiderResult == null)
@@ -118,12 +119,21 @@ internal static class GlobalMonitor
                             StreamStatus prevStreamStatus = roomStatus.StreamStatus;
 
                             // Update Room Status
-                            if (string.IsNullOrWhiteSpace(roomStatus.AvatarThumbUrl))
+                            if (!string.IsNullOrWhiteSpace(spiderResult.AvatarThumbUrl))
                             {
                                 roomStatus.AvatarThumbUrl = spiderResult.AvatarThumbUrl!;
                             }
+
+                            if (!string.IsNullOrWhiteSpace(spiderResult.Nickname) && string.IsNullOrWhiteSpace(roomStatus.NickName))
+                            {
+                                roomStatus.NickName = spiderResult.Nickname!;
+                            }
+
                             roomStatus.FlvUrl = spiderResult.FlvUrl!;
                             roomStatus.HlsUrl = spiderResult.HlsUrl!;
+                            roomStatus.LastRecordAttemptTime = roomStatus.Recorder.LastAttemptTime;
+                            roomStatus.LastRecordStartCommand = roomStatus.Recorder.LastStartCommand;
+                            roomStatus.LastRecordError = roomStatus.Recorder.LastError;
 
                             // If current status is `StreamStatus.Streaming`, don't update it in 30s.
                             if (roomStatus.StreamStatus == StreamStatus.Streaming
@@ -154,12 +164,28 @@ internal static class GlobalMonitor
                             {
                                 if (spiderResult.IsLiveStreaming ?? false)
                                 {
-                                    _ = roomStatus.Recorder.Start(new RecorderStartInfo()
+                                    if (string.IsNullOrWhiteSpace(roomStatus.HlsUrl) && string.IsNullOrWhiteSpace(roomStatus.FlvUrl))
                                     {
-                                        NickName = room.NickName,
-                                        FlvUrl = roomStatus.FlvUrl,
-                                        HlsUrl = roomStatus.HlsUrl,
-                                    });
+                                        roomStatus.LastRecordAttemptTime = DateTime.Now;
+                                        roomStatus.LastRecordError = "主播已开播，但未解析到可用流地址。";
+                                    }
+                                    else
+                                    {
+                                        roomStatus.LastRecordError = string.Empty;
+                                        roomStatus.LastRecordAttemptTime = DateTime.Now;
+                                        roomStatus.LastRecordStartCommand = string.Empty;
+
+                                        _ = roomStatus.Recorder.Start(new RecorderStartInfo()
+                                        {
+                                            NickName = room.NickName,
+                                            FlvUrl = roomStatus.FlvUrl,
+                                            HlsUrl = roomStatus.HlsUrl,
+                                        });
+                                    }
+                                }
+                                else if (roomStatus.RecordStatus != RecordStatus.Recording)
+                                {
+                                    roomStatus.LastRecordError = string.Empty;
                                 }
                             }
                             else
@@ -167,6 +193,7 @@ internal static class GlobalMonitor
                                 if (roomStatus.RecordStatus != RecordStatus.Recording)
                                 {
                                     roomStatus.RecordStatus = RecordStatus.Disabled;
+                                    roomStatus.LastRecordError = string.Empty;
                                 }
                             }
 
@@ -184,7 +211,12 @@ internal static class GlobalMonitor
                             }
                             else
                             {
-                                roomStatus.StreamStatus = StreamStatus.Disabled;
+                                roomStatus.StreamStatus = spiderResult.IsLiveStreaming switch
+                                {
+                                    true => StreamStatus.Streaming,
+                                    false => StreamStatus.NotStreaming,
+                                    null or _ => roomStatus.StreamStatus,
+                                };
                             }
 
                             if (isRoomToRecord && roomStatus.RecordStatus == RecordStatus.Disabled)
@@ -198,8 +230,32 @@ internal static class GlobalMonitor
                             if (roomStatus.RecordStatus != RecordStatus.Recording)
                             {
                                 roomStatus.RecordStatus = RecordStatus.Disabled;
+                                roomStatus.LastRecordError = string.Empty;
                             }
-                            roomStatus.StreamStatus = StreamStatus.Disabled;
+
+                            if (string.IsNullOrWhiteSpace(roomStatus.AvatarThumbUrl))
+                            {
+                                try
+                                {
+                                    ISpiderResult? baseInfo = Spider.GetResult(room.RoomUrl);
+                                    if (baseInfo != null)
+                                    {
+                                        if (!string.IsNullOrWhiteSpace(baseInfo.AvatarThumbUrl))
+                                        {
+                                            roomStatus.AvatarThumbUrl = baseInfo.AvatarThumbUrl!;
+                                        }
+
+                                        if (!string.IsNullOrWhiteSpace(baseInfo.Nickname) && string.IsNullOrWhiteSpace(roomStatus.NickName))
+                                        {
+                                            roomStatus.NickName = baseInfo.Nickname!;
+                                        }
+                                    }
+                                }
+                                catch (Exception e)
+                                {
+                                    Debug.WriteLine(e);
+                                }
+                            }
                         }
                     }
                 }

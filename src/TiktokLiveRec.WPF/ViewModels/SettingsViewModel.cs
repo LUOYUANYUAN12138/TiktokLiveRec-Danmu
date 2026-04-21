@@ -1,3 +1,4 @@
+#nullable disable
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ComputedConverters;
@@ -279,6 +280,33 @@ public partial class SettingsViewModel : ReactiveObject
         ConfigurationManager.Save();
     }
 
+    [ObservableProperty]
+    private bool isEnableDanmu = Configurations.IsEnableDanmu.Get();
+
+    partial void OnIsEnableDanmuChanged(bool value)
+    {
+        Configurations.IsEnableDanmu.Set(value);
+        ConfigurationManager.Save();
+    }
+
+    [ObservableProperty]
+    private string danmuLogFolder = Configurations.DanmuLogFolder.Get();
+
+    partial void OnDanmuLogFolderChanged(string value)
+    {
+        Configurations.DanmuLogFolder.Set(value);
+        ConfigurationManager.Save();
+    }
+
+    [ObservableProperty]
+    private int danmuMaxItems = Configurations.DanmuMaxItems.Get();
+
+    partial void OnDanmuMaxItemsChanged(int value)
+    {
+        Configurations.DanmuMaxItems.Set(Math.Max(50, value));
+        ConfigurationManager.Save();
+    }
+
     [RelayCommand]
     private void SelectSaveFolder()
     {
@@ -294,6 +322,20 @@ public partial class SettingsViewModel : ReactiveObject
     }
 
     [RelayCommand]
+    private void SelectDanmuLogFolder()
+    {
+        using CommonOpenFileDialog dialog = new()
+        {
+            IsFolderPicker = true,
+        };
+
+        if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
+        {
+            DanmuLogFolder = dialog.FileName;
+        }
+    }
+
+    [RelayCommand]
     [SuppressMessage("Performance", "CA1822:Mark members as static")]
     private async Task OpenSaveFolderAsync()
     {
@@ -303,6 +345,13 @@ public partial class SettingsViewModel : ReactiveObject
                 SaveFolderHelper.GetSaveFolder(Configurations.SaveFolder.Get())
             )
         );
+    }
+
+    [RelayCommand]
+    private async Task OpenDanmuLogFolderAsync()
+    {
+        string folder = DanmuLogWriter.Instance.GetLogFolder();
+        await Launcher.LaunchFolderAsync(await StorageFolder.GetFolderFromPathAsync(folder));
     }
 
     [ObservableProperty]

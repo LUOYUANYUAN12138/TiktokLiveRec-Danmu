@@ -39,6 +39,19 @@ public static class Configurations
     public static ConfigurationDefinition<string> CookieChina { get; } = new(nameof(CookieChina), string.Empty);
     public static ConfigurationDefinition<string> CookieOversea { get; } = new(nameof(CookieOversea), string.Empty);
     public static ConfigurationDefinition<string> UserAgent { get; } = new(nameof(UserAgent), string.Empty);
+    public static ConfigurationDefinition<bool> IsEnableDanmu { get; } = new(nameof(IsEnableDanmu), false);
+    public static ConfigurationDefinition<string> DanmuLogFolder { get; } = new(nameof(DanmuLogFolder), string.Empty);
+    public static ConfigurationDefinition<int> DanmuMaxItems { get; } = new(nameof(DanmuMaxItems), 400);
+    public static ConfigurationDefinition<string> SelectedDanmuRoomUrl { get; } = new(nameof(SelectedDanmuRoomUrl), string.Empty);
+    public static ConfigurationDefinition<bool> ShowDanmuChat { get; } = new(nameof(ShowDanmuChat), true);
+    public static ConfigurationDefinition<bool> ShowDanmuGift { get; } = new(nameof(ShowDanmuGift), true);
+    public static ConfigurationDefinition<bool> ShowDanmuLike { get; } = new(nameof(ShowDanmuLike), true);
+    public static ConfigurationDefinition<bool> ShowDanmuMember { get; } = new(nameof(ShowDanmuMember), false);
+    public static ConfigurationDefinition<bool> ShowDanmuFollow { get; } = new(nameof(ShowDanmuFollow), true);
+    public static ConfigurationDefinition<bool> ShowDanmuEmoji { get; } = new(nameof(ShowDanmuEmoji), true);
+    public static ConfigurationDefinition<bool> ShowDanmuRoomStats { get; } = new(nameof(ShowDanmuRoomStats), false);
+    public static ConfigurationDefinition<bool> ShowDanmuRoomRank { get; } = new(nameof(ShowDanmuRoomRank), false);
+    public static ConfigurationDefinition<bool> ShowDanmuFansClub { get; } = new(nameof(ShowDanmuFansClub), false);
 }
 
 [Obfuscation]

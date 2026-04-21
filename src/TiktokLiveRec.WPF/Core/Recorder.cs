@@ -12,6 +12,12 @@ public sealed class Recorder
 {
     public RecordStatus RecordStatus { get; internal set; } = RecordStatus.Initialized;
 
+    public string LastError { get; internal set; } = string.Empty;
+
+    public DateTime LastAttemptTime { get; internal set; } = DateTime.MinValue;
+
+    public string LastStartCommand { get; internal set; } = string.Empty;
+
     public CancellationTokenSource? TokenSource { get; private set; } = null;
 
     public string? Url { get; set; } = null;
@@ -34,6 +40,9 @@ public sealed class Recorder
             return Task.CompletedTask;
         }
 
+        LastAttemptTime = DateTime.Now;
+        LastError = string.Empty;
+        LastStartCommand = string.Empty;
         RecordStatus = RecordStatus.Recording;
 
         // Start a recording task that does not use the default ThreadPool.
@@ -41,11 +50,14 @@ public sealed class Recorder
         {
             try
             {
-                string? recorderPath = SearchFileHelper.SearchFiles(".", "ffmpeg[\\.exe]").FirstOrDefault();
+                string? recorderPath = SearchFileHelper.SearchFiles(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg[\\.exe]").FirstOrDefault()
+                    ?? SearchExecutableOnPath("ffmpeg.exe")
+                    ?? SearchExecutableOnPath("ffmpeg");
 
                 if (recorderPath == null)
                 {
                     // Recorder not found so you should reinstall the program.
+                    LastError = "未找到 ffmpeg，可执行文件未随程序提供。";
                     RecordStatus = RecordStatus.NotRecording;
                     return;
                 }
@@ -86,6 +98,13 @@ public sealed class Recorder
                 else
                 {
                     Url = startInfo.FlvUrl;
+
+                    if (string.IsNullOrWhiteSpace(Url))
+                    {
+                        LastError = "未获取到可用的直播流地址。";
+                        RecordStatus = RecordStatus.NotRecording;
+                        return;
+                    }
 
                     if (isToSegment)
                     {
@@ -154,12 +173,13 @@ public sealed class Recorder
                 )
                 .AddIf(true, FileName) // _%03d
                 .ToArguments();
+                LastStartCommand = $"{recorderPath} {Parameters}";
                 TokenSource = tokenSource ?? new CancellationTokenSource();
 
                 EndTime = DateTime.MinValue;
                 StartTime = DateTime.Now;
 
-                CliResult result = await recorderPath
+                _ = await recorderPath
                     .WithArguments(Parameters)
                     .WithEnvironmentVariable(
                     [
@@ -170,8 +190,13 @@ public sealed class Recorder
                     .WithStandardOutputPipe(PipeTarget.ToDelegate(OnStandardOutputReceived, Encoding.UTF8))
                     .ExecuteAsync(cancellationToken: TokenSource.Token);
             }
+            catch (OperationCanceledException)
+            {
+                LastError = string.Empty;
+            }
             catch (Exception e)
             {
+                LastError = $"录制启动失败: {e.Message}";
                 Debug.WriteLine(e);
             }
 
@@ -215,6 +240,31 @@ public sealed class Recorder
             }
 
             EndTime = DateTime.Now;
+            if (!string.IsNullOrWhiteSpace(FileName))
+            {
+                string outputPattern = FileName;
+                string? outputFolder = Path.GetDirectoryName(outputPattern);
+
+                bool hasOutputFile = !string.IsNullOrWhiteSpace(outputFolder)
+                    && Directory.Exists(outputFolder)
+                    && Directory.EnumerateFiles(outputFolder, Path.GetFileName(outputPattern).Replace("%03d", "*")).Any();
+
+                bool wasCanceled = TokenSource?.IsCancellationRequested ?? false;
+                if (!wasCanceled)
+                {
+                    if (!hasOutputFile)
+                    {
+                        LastError = string.IsNullOrWhiteSpace(LastError)
+                            ? "录制进程已退出，未生成录制文件。"
+                            : LastError;
+                    }
+                    else
+                    {
+                        LastError = string.Empty;
+                    }
+                }
+            }
+
             RecordStatus = RecordStatus.NotRecording;
         }, TaskCreationOptions.LongRunning);
     }
@@ -246,6 +296,32 @@ public sealed class Recorder
             Data = data,
         });
         return Task.CompletedTask;
+    }
+
+    private static string? SearchExecutableOnPath(string executableName)
+    {
+        string? path = Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        foreach (string candidate in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            try
+            {
+                string fullPath = Path.Combine(candidate.Trim(), executableName);
+                if (File.Exists(fullPath))
+                {
+                    return fullPath;
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        return null;
     }
 }
 

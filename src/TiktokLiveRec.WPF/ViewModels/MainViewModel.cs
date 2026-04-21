@@ -1,3 +1,4 @@
+﻿#nullable disable
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -30,8 +31,13 @@ using CheckBox = System.Windows.Controls.CheckBox;
 namespace TiktokLiveRec.ViewModels;
 
 [ObservableObject]
-public partial class MainViewModel : ReactiveObject
+public partial class MainViewModel : ReactiveObject, IDisposable
 {
+    private readonly IDouyinDanmuService _douyinDanmuService = new DouyinDanmuService();
+    private readonly SemaphoreSlim _danmuRefreshLock = new(1, 1);
+    private StreamStatus _lastSelectedDanmuRoomStreamStatus = StreamStatus.Initialized;
+    private int _selectedDanmuRoomNotStreamingStreak;
+
     protected internal ForeverDispatcherTimer DispatcherTimer { get; }
 
     [ObservableProperty]
@@ -41,7 +47,98 @@ public partial class MainViewModel : ReactiveObject
     private RoomStatusReactive selectedItem = new();
 
     [ObservableProperty]
+    private ReactiveCollection<RoomStatusReactive> danmuRoomOptions = [];
+
+    [ObservableProperty]
+    private RoomStatusReactive selectedDanmuRoom = new();
+
+    [ObservableProperty]
+    private ReactiveCollection<DanmuMessage> displayedDanmuMessages = [];
+
+    [ObservableProperty]
     private bool isRecording = false;
+
+    [ObservableProperty]
+    private bool isEnableDanmu = Configurations.IsEnableDanmu.Get();
+
+    partial void OnIsEnableDanmuChanged(bool value)
+    {
+        Configurations.IsEnableDanmu.Set(value);
+        ConfigurationManager.Save();
+        _ = RefreshDanmuConnectionAsync();
+    }
+
+    [ObservableProperty]
+    private string danmuPanelTitle = "未选择弹幕房间";
+
+    [ObservableProperty]
+    private string danmuStatusText = "已关闭";
+
+    partial void OnSelectedItemChanged(RoomStatusReactive value)
+    {
+        if (value != null)
+        {
+            value.RefreshStatus();
+        }
+    }
+
+    partial void OnSelectedDanmuRoomChanged(RoomStatusReactive value)
+    {
+        Configurations.SelectedDanmuRoomUrl.Set(value?.RoomUrl ?? string.Empty);
+        ConfigurationManager.Save();
+
+        DanmuPanelTitle = string.IsNullOrWhiteSpace(value?.NickName) ? "未选择弹幕房间" : value.NickName;
+        DanmuStatusText = value?.DanmuConnectionStateText ?? (IsEnableDanmu ? "待连接" : "已关闭");
+        _lastSelectedDanmuRoomStreamStatus = value?.StreamStatus ?? StreamStatus.Initialized;
+        _selectedDanmuRoomNotStreamingStreak = 0;
+        RebuildDisplayedDanmuMessages();
+        _ = RefreshDanmuConnectionAsync();
+    }
+
+    [ObservableProperty]
+    private bool showDanmuChat = Configurations.ShowDanmuChat.Get();
+
+    partial void OnShowDanmuChatChanged(bool value) => SaveDanmuFilter(() => Configurations.ShowDanmuChat.Set(value));
+
+    [ObservableProperty]
+    private bool showDanmuGift = Configurations.ShowDanmuGift.Get();
+
+    partial void OnShowDanmuGiftChanged(bool value) => SaveDanmuFilter(() => Configurations.ShowDanmuGift.Set(value));
+
+    [ObservableProperty]
+    private bool showDanmuLike = Configurations.ShowDanmuLike.Get();
+
+    partial void OnShowDanmuLikeChanged(bool value) => SaveDanmuFilter(() => Configurations.ShowDanmuLike.Set(value));
+
+    [ObservableProperty]
+    private bool showDanmuMember = Configurations.ShowDanmuMember.Get();
+
+    partial void OnShowDanmuMemberChanged(bool value) => SaveDanmuFilter(() => Configurations.ShowDanmuMember.Set(value));
+
+    [ObservableProperty]
+    private bool showDanmuFollow = Configurations.ShowDanmuFollow.Get();
+
+    partial void OnShowDanmuFollowChanged(bool value) => SaveDanmuFilter(() => Configurations.ShowDanmuFollow.Set(value));
+
+    [ObservableProperty]
+    private bool showDanmuEmoji = Configurations.ShowDanmuEmoji.Get();
+
+    partial void OnShowDanmuEmojiChanged(bool value) => SaveDanmuFilter(() => Configurations.ShowDanmuEmoji.Set(value));
+
+    [ObservableProperty]
+    private bool showDanmuRoomStats = Configurations.ShowDanmuRoomStats.Get();
+
+    partial void OnShowDanmuRoomStatsChanged(bool value) => SaveDanmuFilter(() => Configurations.ShowDanmuRoomStats.Set(value));
+
+    [ObservableProperty]
+    private bool showDanmuRoomRank = Configurations.ShowDanmuRoomRank.Get();
+
+    partial void OnShowDanmuRoomRankChanged(bool value) => SaveDanmuFilter(() => Configurations.ShowDanmuRoomRank.Set(value));
+
+    [ObservableProperty]
+    private bool showDanmuFansClub = Configurations.ShowDanmuFansClub.Get();
+
+    partial void OnShowDanmuFansClubChanged(bool value) => SaveDanmuFilter(() => Configurations.ShowDanmuFansClub.Set(value));
 
     partial void OnIsRecordingChanged(bool value)
     {
@@ -108,6 +205,7 @@ public partial class MainViewModel : ReactiveObject
             IsToNotify = room.IsToNotify,
             IsToRecord = room.IsToRecord,
         }));
+        SyncDanmuRoomOptions();
 
         Locale.CultureChanged += (_, _) =>
         {
@@ -132,10 +230,24 @@ public partial class MainViewModel : ReactiveObject
             }
         });
 
+        _douyinDanmuService.MessageReceived += OnDanmuMessageReceived;
+        _douyinDanmuService.ConnectionStateChanged += OnDanmuConnectionStateChanged;
+        _douyinDanmuService.ErrorOccurred += OnDanmuErrorOccurred;
+
         GlobalMonitor.Start();
         ChildProcessTracerPeriodicTimer.Default.WhiteList = ["ffmpeg", "ffplay"];
         ChildProcessTracerPeriodicTimer.Default.Start();
         DispatcherTimer.Start();
+
+        if (RoomStatuses.Count > 0)
+        {
+            SelectedItem = RoomStatuses[0];
+        }
+
+        RoomStatusReactive initialDanmuRoom = DanmuRoomOptions.FirstOrDefault(room => room.RoomUrl == Configurations.SelectedDanmuRoomUrl.Get())
+            ?? DanmuRoomOptions.FirstOrDefault()
+            ?? new RoomStatusReactive();
+        SelectedDanmuRoom = initialDanmuRoom;
     }
 
     private void ReloadRoomStatus()
@@ -146,13 +258,27 @@ public partial class MainViewModel : ReactiveObject
 
             if (roomStatusReactive != null)
             {
-                roomStatusReactive.AvatarThumbUrl = roomStatus.AvatarThumbUrl;
+                if (!string.IsNullOrWhiteSpace(roomStatus.NickName))
+                {
+                    roomStatusReactive.NickName = roomStatus.NickName;
+                }
+
+                if (!string.IsNullOrWhiteSpace(roomStatus.AvatarThumbUrl))
+                {
+                    roomStatusReactive.AvatarThumbUrl = roomStatus.AvatarThumbUrl;
+                }
+
                 roomStatusReactive.StreamStatus = roomStatus.StreamStatus;
                 roomStatusReactive.RecordStatus = roomStatus.RecordStatus;
                 roomStatusReactive.FlvUrl = roomStatus.FlvUrl;
                 roomStatusReactive.HlsUrl = roomStatus.HlsUrl;
                 roomStatusReactive.StartTime = roomStatus.Recorder.StartTime;
                 roomStatusReactive.EndTime = roomStatus.Recorder.EndTime;
+                roomStatusReactive.DanmuConnectionState = roomStatus.DanmuConnectionState;
+                roomStatusReactive.DanmuLastMessageTime = roomStatus.DanmuLastMessageTime;
+                roomStatusReactive.LastRecordError = roomStatus.LastRecordError;
+                roomStatusReactive.LastRecordAttemptTime = roomStatus.LastRecordAttemptTime;
+                roomStatusReactive.LastRecordStartCommand = roomStatus.LastRecordStartCommand;
                 roomStatusReactive.RefreshDuration();
             }
         }
@@ -167,6 +293,8 @@ public partial class MainViewModel : ReactiveObject
         StatusOfAutoShutdownTime = Configurations.AutoShutdownTime.Get();
         StatusOfRecordFormat = Configurations.RecordFormat.Get();
         StatusOfRoutineInterval = Configurations.RoutineInterval.Get();
+        DanmuStatusText = SelectedDanmuRoom?.DanmuConnectionStateText ?? (IsEnableDanmu ? "待连接" : "已关闭");
+        SyncSelectedDanmuRoomAutoConnection();
 
         if (StatusOfIsUseAutoShutdown && TimeSpan.TryParse(StatusOfAutoShutdownTime, out TimeSpan targetTime))
         {
@@ -216,6 +344,63 @@ public partial class MainViewModel : ReactiveObject
         }
     }
 
+    private void SyncDanmuRoomOptions()
+    {
+        DanmuRoomOptions.Reset(RoomStatuses.Where(room => IsDouyinRoom(room.RoomUrl)));
+
+        if (SelectedDanmuRoom == null || string.IsNullOrWhiteSpace(SelectedDanmuRoom.RoomUrl))
+        {
+            return;
+        }
+
+        RoomStatusReactive matched = DanmuRoomOptions.FirstOrDefault(room => room.RoomUrl == SelectedDanmuRoom.RoomUrl);
+        if (matched != null && !ReferenceEquals(matched, SelectedDanmuRoom))
+        {
+            SelectedDanmuRoom = matched;
+        }
+    }
+
+    private static bool IsDouyinRoom(string roomUrl) =>
+        !string.IsNullOrWhiteSpace(roomUrl) && roomUrl.Contains("douyin", StringComparison.OrdinalIgnoreCase);
+
+    private void SaveDanmuFilter(Action saveAction)
+    {
+        saveAction();
+        ConfigurationManager.Save();
+        RebuildDisplayedDanmuMessages();
+    }
+
+    private bool IsDanmuMessageVisible(DanmuMessage message) => message.Method switch
+    {
+        DanmuMessageMethod.Chat => ShowDanmuChat,
+        DanmuMessageMethod.Gift => ShowDanmuGift,
+        DanmuMessageMethod.Like => ShowDanmuLike,
+        DanmuMessageMethod.Member => ShowDanmuMember,
+        DanmuMessageMethod.Social => ShowDanmuFollow,
+        DanmuMessageMethod.EmojiChat => ShowDanmuEmoji,
+        DanmuMessageMethod.RoomUserSeq or DanmuMessageMethod.RoomStats => ShowDanmuRoomStats,
+        DanmuMessageMethod.RoomRank => ShowDanmuRoomRank,
+        DanmuMessageMethod.FansClub => ShowDanmuFansClub,
+        _ => true,
+    };
+
+    private void RebuildDisplayedDanmuMessages()
+    {
+        if (SelectedDanmuRoom == null || string.IsNullOrWhiteSpace(SelectedDanmuRoom.RoomUrl))
+        {
+            DisplayedDanmuMessages.Clear();
+            return;
+        }
+
+        if (!GlobalMonitor.RoomStatus.TryGetValue(SelectedDanmuRoom.RoomUrl, out RoomStatus roomStatus))
+        {
+            DisplayedDanmuMessages.Clear();
+            return;
+        }
+
+        DisplayedDanmuMessages.Reset(roomStatus.DanmuMessages.Where(IsDanmuMessageVisible));
+    }
+
     [RelayCommand]
     private async Task AddRoomAsync()
     {
@@ -242,6 +427,17 @@ public partial class MainViewModel : ReactiveObject
                     NickName = dialog.NickName,
                     RoomUrl = dialog.RoomUrl!,
                 });
+                SyncDanmuRoomOptions();
+
+                if (RoomStatuses.Count == 1)
+                {
+                    SelectedItem = RoomStatuses[0];
+                }
+
+                if (SelectedDanmuRoom == null || string.IsNullOrWhiteSpace(SelectedDanmuRoom.RoomUrl))
+                {
+                    SelectedDanmuRoom = DanmuRoomOptions.FirstOrDefault() ?? new RoomStatusReactive();
+                }
             }
         }
     }
@@ -269,6 +465,31 @@ public partial class MainViewModel : ReactiveObject
                 SaveFolderHelper.GetSaveFolder(Configurations.SaveFolder.Get())
             )
         );
+    }
+
+    [RelayCommand]
+    private async Task OpenDanmuLogFolderAsync()
+    {
+        string nickname = SelectedDanmuRoom?.NickName;
+        string folder = DanmuLogWriter.Instance.GetLogFolder(nickname);
+        await Launcher.LaunchFolderAsync(await StorageFolder.GetFolderFromPathAsync(folder));
+    }
+
+    [RelayCommand]
+    private void ClearDanmuMessages()
+    {
+        if (SelectedDanmuRoom == null || string.IsNullOrWhiteSpace(SelectedDanmuRoom.RoomUrl))
+        {
+            return;
+        }
+
+        SelectedDanmuRoom.DanmuMessages.Clear();
+        DisplayedDanmuMessages.Clear();
+
+        if (GlobalMonitor.RoomStatus.TryGetValue(SelectedDanmuRoom.RoomUrl, out RoomStatus? roomStatus))
+        {
+            roomStatus.DanmuMessages.Clear();
+        }
     }
 
     [RelayCommand]
@@ -349,11 +570,14 @@ public partial class MainViewModel : ReactiveObject
 
         if (result == MessageBoxResult.Yes)
         {
+            string removedRoomUrl = SelectedItem.RoomUrl;
+
             // Stop and remove from Global status
-            if (GlobalMonitor.RoomStatus.TryGetValue(SelectedItem.RoomUrl, out RoomStatus? roomStatus))
+            if (GlobalMonitor.RoomStatus.TryGetValue(removedRoomUrl, out RoomStatus? roomStatus))
             {
                 roomStatus.Recorder.Stop();
-                _ = GlobalMonitor.RoomStatus.TryRemove(SelectedItem.RoomUrl, out _);
+                roomStatus.DanmuMessages.Clear();
+                _ = GlobalMonitor.RoomStatus.TryRemove(removedRoomUrl, out _);
             }
 
             // Remove from Reactive UI
@@ -362,16 +586,209 @@ public partial class MainViewModel : ReactiveObject
             {
                 RoomStatuses.Remove(roomStatusReactive);
             }
+            SyncDanmuRoomOptions();
+
+            if (RoomStatuses.Count > 0)
+            {
+                SelectedItem = RoomStatuses[0];
+            }
+            else
+            {
+                SelectedItem = new RoomStatusReactive();
+            }
+
+            if (SelectedDanmuRoom?.RoomUrl == removedRoomUrl)
+            {
+                SelectedDanmuRoom = DanmuRoomOptions.FirstOrDefault() ?? new RoomStatusReactive();
+            }
 
             // Remove from Configuration
             List<Room> rooms = [.. Configurations.Rooms.Get()];
 
-            rooms.Remove(rooms.Where(room => room.RoomUrl == SelectedItem.RoomUrl).FirstOrDefault()!);
+            rooms.Remove(rooms.Where(room => room.RoomUrl == removedRoomUrl).FirstOrDefault()!);
             Configurations.Rooms.Set([.. rooms]);
             ConfigurationManager.Save();
 
             Toast.Success("SuccOp".Tr());
         }
+    }
+
+    private async Task RefreshDanmuConnectionAsync()
+    {
+        await _danmuRefreshLock.WaitAsync();
+        try
+        {
+            if (!IsEnableDanmu)
+            {
+                DanmuStatusText = "已关闭";
+
+                if (SelectedDanmuRoom != null)
+                {
+                    SelectedDanmuRoom.DanmuConnectionState = DanmuConnectionState.Disabled;
+                }
+
+                await _douyinDanmuService.DisconnectAsync();
+                return;
+            }
+
+            if (SelectedDanmuRoom == null || string.IsNullOrWhiteSpace(SelectedDanmuRoom.RoomUrl))
+            {
+                DanmuStatusText = "未选择弹幕房间";
+                await _douyinDanmuService.DisconnectAsync();
+                return;
+            }
+
+            if (SelectedDanmuRoom.StreamStatus != StreamStatus.Streaming)
+            {
+                SelectedDanmuRoom.DanmuConnectionState = DanmuConnectionState.WaitingForLive;
+                DanmuStatusText = SelectedDanmuRoom.DanmuConnectionStateText;
+                await _douyinDanmuService.DisconnectAsync();
+                return;
+            }
+
+            await _douyinDanmuService.SwitchRoomAsync(SelectedDanmuRoom.RoomUrl, SelectedDanmuRoom.NickName);
+        }
+        finally
+        {
+            _danmuRefreshLock.Release();
+        }
+    }
+
+    private void SyncSelectedDanmuRoomAutoConnection()
+    {
+        if (!IsEnableDanmu || SelectedDanmuRoom == null || string.IsNullOrWhiteSpace(SelectedDanmuRoom.RoomUrl))
+        {
+            return;
+        }
+
+        StreamStatus currentStatus = SelectedDanmuRoom.StreamStatus;
+        bool isStreaming = currentStatus == StreamStatus.Streaming;
+        bool wasStreaming = _lastSelectedDanmuRoomStreamStatus == StreamStatus.Streaming;
+
+        if (isStreaming)
+        {
+            _selectedDanmuRoomNotStreamingStreak = 0;
+
+            if (!wasStreaming || SelectedDanmuRoom.DanmuConnectionState is DanmuConnectionState.WaitingForLive or DanmuConnectionState.Idle)
+            {
+                _ = RefreshDanmuConnectionAsync();
+            }
+        }
+        else
+        {
+            _selectedDanmuRoomNotStreamingStreak++;
+
+            bool shouldWaitForLive = SelectedDanmuRoom.DanmuConnectionState == DanmuConnectionState.WaitingForLive
+                || SelectedDanmuRoom.DanmuConnectionState == DanmuConnectionState.Disabled
+                || _selectedDanmuRoomNotStreamingStreak >= 2;
+
+            if (shouldWaitForLive && SelectedDanmuRoom.DanmuConnectionState != DanmuConnectionState.WaitingForLive)
+            {
+                SelectedDanmuRoom.DanmuConnectionState = DanmuConnectionState.WaitingForLive;
+                DanmuStatusText = SelectedDanmuRoom.DanmuConnectionStateText;
+                _ = _douyinDanmuService.DisconnectAsync();
+            }
+        }
+
+        _lastSelectedDanmuRoomStreamStatus = currentStatus;
+    }
+
+    private void OnDanmuMessageReceived(DanmuMessage message)
+    {
+        bool isVisible = IsDanmuMessageVisible(message);
+        if (isVisible)
+        {
+            DanmuLogWriter.Instance.Enqueue(message);
+        }
+
+        ApplicationDispatcher.BeginInvoke(() =>
+        {
+            if (!GlobalMonitor.RoomStatus.TryGetValue(message.RoomUrl, out RoomStatus? roomStatus))
+            {
+                roomStatus = new RoomStatus()
+                {
+                    RoomUrl = message.RoomUrl,
+                    NickName = message.RoomNickname,
+                };
+                GlobalMonitor.RoomStatus.TryAdd(message.RoomUrl, roomStatus);
+            }
+
+            roomStatus.DanmuLastMessageTime = message.RawTimestamp.LocalDateTime;
+            roomStatus.DanmuMessages.Add(message);
+
+            int maxItems = Math.Max(50, Configurations.DanmuMaxItems.Get());
+            while (roomStatus.DanmuMessages.Count > maxItems)
+            {
+                roomStatus.DanmuMessages.RemoveAt(0);
+            }
+
+            RoomStatusReactive? reactive = RoomStatuses.FirstOrDefault(room => room.RoomUrl == message.RoomUrl);
+            if (reactive == null)
+            {
+                return;
+            }
+
+            reactive.DanmuLastMessageTime = roomStatus.DanmuLastMessageTime;
+            reactive.DanmuMessages.Reset(roomStatus.DanmuMessages);
+
+            if (SelectedDanmuRoom?.RoomUrl == message.RoomUrl)
+            {
+                if (isVisible)
+                {
+                    DisplayedDanmuMessages.Add(message);
+                    int displayedMaxItems = Math.Max(50, Configurations.DanmuMaxItems.Get());
+                    while (DisplayedDanmuMessages.Count > displayedMaxItems)
+                    {
+                        DisplayedDanmuMessages.RemoveAt(0);
+                    }
+                }
+
+                DanmuStatusText = reactive.DanmuConnectionStateText;
+            }
+        });
+    }
+
+    private void OnDanmuConnectionStateChanged(string roomUrl, DanmuConnectionState state)
+    {
+        ApplicationDispatcher.BeginInvoke(() =>
+        {
+            if (!GlobalMonitor.RoomStatus.TryGetValue(roomUrl, out RoomStatus? roomStatus))
+            {
+                roomStatus = new RoomStatus()
+                {
+                    RoomUrl = roomUrl,
+                    NickName = RoomStatuses.FirstOrDefault(room => room.RoomUrl == roomUrl)?.NickName ?? string.Empty,
+                };
+                GlobalMonitor.RoomStatus.TryAdd(roomUrl, roomStatus);
+            }
+
+            if (roomStatus != null)
+            {
+                roomStatus.DanmuConnectionState = state;
+            }
+
+            RoomStatusReactive? reactive = RoomStatuses.FirstOrDefault(room => room.RoomUrl == roomUrl);
+            if (reactive != null)
+            {
+                reactive.DanmuConnectionState = state;
+
+                if (SelectedDanmuRoom?.RoomUrl == roomUrl)
+                {
+                    DanmuStatusText = reactive.DanmuConnectionStateText;
+                }
+            }
+        });
+    }
+
+    private void OnDanmuErrorOccurred(string roomUrl, string reason)
+    {
+        ApplicationDispatcher.BeginInvoke(() =>
+        {
+            if (SelectedDanmuRoom?.RoomUrl == roomUrl)
+            {
+                DanmuStatusText = $"连接失败: {reason}";
+            }
+        });
     }
 
     [RelayCommand]
@@ -570,4 +987,11 @@ public partial class MainViewModel : ReactiveObject
             }
         }
     }
+
+    public void Dispose()
+    {
+        _douyinDanmuService.Dispose();
+        DanmuLogWriter.Instance.Dispose();
+    }
 }
+

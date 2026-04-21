@@ -300,6 +300,57 @@
                                                Margin="4,0,0,0"
                                                HorizontalAlignment="Center"
                                                VerticalAlignment="Center"
+                                               FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                               FontSize="18"
+                                               Text="{x:Static ui:FontSymbols.Rename}" />
+                                </Grid>
+                                <ui:Grid Grid.Column="1" RowDefinitions="Auto,Auto">
+                                    <TextBlock Grid.Row="0" Text="抖音弹幕" />
+                                    <TextBlock Grid.Row="1"
+                                               FontSize="11"
+                                               Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                               Text="控制礼物、聊天、点赞等实时消息展示与落盘。" />
+                                </ui:Grid>
+                                <Grid Grid.Column="2" Margin="0,0,12,0">
+                                    <ui:ToggleSwitch IsChecked="{Binding IsEnableDanmu, Mode=TwoWay}" />
+                                </Grid>
+                            </ui:Grid>
+                        </ui:CardExpander.Header>
+                        <ui:StackPanel IsEnabled="{Binding IsEnableDanmu}" Spacing="8">
+                            <ui:Grid Margin="42,0,28,0" ColumnDefinitions="Auto,*,Auto,Auto">
+                                <TextBlock VerticalAlignment="Center" Text="弹幕日志目录" />
+                                <ui:TextBox Grid.Column="1"
+                                            Margin="8,0,0,0"
+                                            PlaceholderText="留空则默认放在录制目录下的 danmu"
+                                            Text="{Binding DanmuLogFolder, Mode=TwoWay}" />
+                                <Button Grid.Column="2"
+                                        Margin="8,0,0,0"
+                                        Command="{Binding SelectDanmuLogFolderCommand}"
+                                        Content="{I18N SelectFolder}" />
+                                <Button Grid.Column="3"
+                                        Margin="8,0,0,0"
+                                        Command="{Binding OpenDanmuLogFolderCommand}"
+                                        Content="{I18N OpenFolder}" />
+                            </ui:Grid>
+                            <ui:Grid Margin="42,0,28,0" ColumnDefinitions="Auto,Auto">
+                                <TextBlock VerticalAlignment="Center" Text="每房间最大缓存条数" />
+                                <ui:NumberBox Grid.Column="1"
+                                              MinWidth="150"
+                                              Margin="8,0,0,0"
+                                              Maximum="5000"
+                                              Minimum="50"
+                                              Value="{Binding DanmuMaxItems, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            </ui:Grid>
+                        </ui:StackPanel>
+                    </ui:CardExpander>
+                    <ui:CardExpander>
+                        <ui:CardExpander.Header>
+                            <ui:Grid ColumnDefinitions="Auto,*,Auto">
+                                <Grid Grid.Column="0" Margin="0,0,12,0">
+                                    <TextBlock MinWidth="26"
+                                               Margin="4,0,0,0"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
                                                FontFamily="{StaticResource SymbolThemeFontFamily}"
                                                FontSize="18"
                                                Text="{x:Static ui:FontSymbols.BulletedList}" />

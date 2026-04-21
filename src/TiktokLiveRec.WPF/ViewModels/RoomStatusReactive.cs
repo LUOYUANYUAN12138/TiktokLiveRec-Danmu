@@ -1,3 +1,4 @@
+#nullable disable
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ComputedConverters;
@@ -33,6 +34,43 @@ public partial class RoomStatusReactive : ReactiveObject
     private bool isToRecord = true;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DanmuConnectionStateText))]
+    private DanmuConnectionState danmuConnectionState = DanmuConnectionState.Disabled;
+
+    [ObservableProperty]
+    private DateTime danmuLastMessageTime = DateTime.MinValue;
+
+    [ObservableProperty]
+    private ReactiveCollection<DanmuMessage> danmuMessages = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RecordStatusHintText))]
+    private string lastRecordError = string.Empty;
+
+    [ObservableProperty]
+    private DateTime lastRecordAttemptTime = DateTime.MinValue;
+
+    [ObservableProperty]
+    private string lastRecordStartCommand = string.Empty;
+
+    public string DanmuConnectionStateText => DanmuConnectionState switch
+    {
+        DanmuConnectionState.Disabled => "已关闭",
+        DanmuConnectionState.Idle => "待连接",
+        DanmuConnectionState.WaitingForLive => "等待开播",
+        DanmuConnectionState.Unsupported => "仅支持抖音",
+        DanmuConnectionState.Connecting => "连接中",
+        DanmuConnectionState.Connected => "已连接",
+        DanmuConnectionState.Reconnecting => "重连中",
+        DanmuConnectionState.Failed => "连接失败",
+        _ => "未知",
+    };
+
+    public string RecordStatusHintText => string.IsNullOrWhiteSpace(LastRecordError)
+        ? string.Empty
+        : $"录制失败: {LastRecordError}";
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StreamStatusText))]
     private StreamStatus streamStatus = default;
 
@@ -55,9 +93,9 @@ public partial class RoomStatusReactive : ReactiveObject
         RecordStatus.Disabled => "RecordStatusOfDisabled".Tr(),
         RecordStatus.NotRecording => "RecordStatusOfNotRecording".Tr(),
         RecordStatus.Recording => "RecordStatusOfRecording".Tr() + " " + Duration,
-#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618
         RecordStatus.Error => "RecordStatusOfError".Tr(),
-#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618
         _ => "RecordStatusOfUnknown".Tr(),
     };
 
@@ -79,8 +117,10 @@ public partial class RoomStatusReactive : ReactiveObject
                 {
                     return (EndTime - StartTime).ToTimeCodeString();
                 }
+
                 return (DateTime.Now - StartTime).ToTimeCodeString();
             }
+
             return string.Empty;
         }
     }
@@ -89,6 +129,8 @@ public partial class RoomStatusReactive : ReactiveObject
     {
         OnPropertyChanged(nameof(StreamStatusText));
         OnPropertyChanged(nameof(RecordStatusText));
+        OnPropertyChanged(nameof(DanmuConnectionStateText));
+        OnPropertyChanged(nameof(RecordStatusHintText));
     }
 
     public void RefreshDuration()
@@ -136,9 +178,7 @@ file static class TimeSpanExtension
         {
             return timeSpan.ToString(@"mm\:ss");
         }
-        else
-        {
-            return timeSpan.ToString(@"h\:mm\:ss");
-        }
+
+        return timeSpan.ToString(@"h\:mm\:ss");
     }
 }

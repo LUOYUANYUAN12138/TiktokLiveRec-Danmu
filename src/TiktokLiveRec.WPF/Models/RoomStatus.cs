@@ -22,6 +22,30 @@ public sealed class RoomStatus
         internal set => Recorder.RecordStatus = value;
     }
 
+    public DanmuConnectionState DanmuConnectionState { get; set; } = DanmuConnectionState.Disabled;
+
+    public DateTime DanmuLastMessageTime { get; set; } = DateTime.MinValue;
+
+    public List<DanmuMessage> DanmuMessages { get; } = [];
+
+    public string LastRecordError
+    {
+        get => Recorder.LastError;
+        set => Recorder.LastError = value;
+    }
+
+    public DateTime LastRecordAttemptTime
+    {
+        get => Recorder.LastAttemptTime;
+        set => Recorder.LastAttemptTime = value;
+    }
+
+    public string LastRecordStartCommand
+    {
+        get => Recorder.LastStartCommand;
+        set => Recorder.LastStartCommand = value;
+    }
+
     public Recorder Recorder { get; } = new();
 
     public Player Player { get; } = new();

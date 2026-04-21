@@ -137,6 +137,23 @@ public sealed partial class DouyinSpider : ISpider
                 .Replace("\\u0026", "&");
         }
 
+        if (string.IsNullOrWhiteSpace(result.HlsUrl))
+        {
+            match = HlsPullUrlFallbackRegex.Match(htmlStr);
+            if (match.Success)
+            {
+                result.HlsUrl = match.Groups[1].Value
+                    .Replace("\\u0026", "&");
+            }
+        }
+
+        match = FlvPullUrlFallbackRegex.Match(htmlStr);
+        if (match.Success)
+        {
+            result.FlvUrl = match.Groups[1].Value
+                .Replace("\\u0026", "&");
+        }
+
         return result;
     }
 
@@ -148,6 +165,12 @@ public sealed partial class DouyinSpider : ISpider
 
     [GeneratedRegex("\\\\\"hls_pull_url_map\\\\\":{\\\\\"FULL_HD1\\\\\":\\\\\"(.*?)\\\\\"")]
     private static partial Regex HlsPullUrlMapRegex { get; }
+
+    [GeneratedRegex("\\\\\"hls_pull_url_map\\\\\":\\{.*?\\\\\"[^\\\"]+\\\\\":\\\\\"(.*?)\\\\\"", RegexOptions.Singleline)]
+    private static partial Regex HlsPullUrlFallbackRegex { get; }
+
+    [GeneratedRegex("\\\\\"flv_pull_url\\\\\":\\{.*?\\\\\"[^\\\"]+\\\\\":\\\\\"(.*?)\\\\\"", RegexOptions.Singleline)]
+    private static partial Regex FlvPullUrlFallbackRegex { get; }
 }
 
 public sealed class DouyinSpiderResult : ISpiderResult
