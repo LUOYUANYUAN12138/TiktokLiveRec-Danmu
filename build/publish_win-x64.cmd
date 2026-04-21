@@ -6,17 +6,26 @@ cd /d %~dp0
 
 set PUBLISH_DIR=..\src\TiktokLiveRec.WPF\bin\x64\Release\net9.0-windows10.0.26100.0\publish\win-x64
 set APP_EXE=%PUBLISH_DIR%\TiktokLiveRec.exe
+set SEVEN_Z=7z
+set MAKEMICA=makemica
 
-where 7z >nul 2>nul
-if errorlevel 1 (
-    echo [ERROR] 7z was not found in PATH.
-    exit /b 1
+if exist "%~dp07z.exe" set SEVEN_Z=%~dp07z.exe
+if exist "%~dp0makemica.exe" set MAKEMICA=%~dp0makemica.exe
+
+if "%SEVEN_Z%"=="7z" (
+    where 7z >nul 2>nul
+    if errorlevel 1 (
+        echo [ERROR] 7z was not found in PATH or build directory.
+        exit /b 1
+    )
 )
 
-where makemica >nul 2>nul
-if errorlevel 1 (
-    echo [ERROR] makemica was not found in PATH.
-    exit /b 1
+if "%MAKEMICA%"=="makemica" (
+    where makemica >nul 2>nul
+    if errorlevel 1 (
+        echo [ERROR] makemica was not found in PATH or build directory.
+        exit /b 1
+    )
 )
 
 if not exist ffmpeg.exe (
@@ -66,12 +75,12 @@ if not exist "%PUBLISH_DIR%\Assets\Danmu\a_bogus.js" (
 )
 
 del /s /q publish.7z
-7z a publish.7z "%PUBLISH_DIR%\*" -t7z -mx=5 -mf=BCJ2 -r -y
+"%SEVEN_Z%" a publish.7z "%PUBLISH_DIR%\*" -t7z -mx=5 -mf=BCJ2 -r -y
 if errorlevel 1 exit /b 1
 
 for /f "usebackq delims=" %%i in (`powershell -NoLogo -NoProfile -Command "Get-Content '..\src\TiktokLiveRec.WPF\TiktokLiveRec.WPF.csproj' | Select-String -Pattern '<AssemblyVersion>(.*?)</AssemblyVersion>' | ForEach-Object { $_.Matches.Groups[1].Value }"`) do @set version=%%i
 del /s /q TiktokLiveRec_v%version%_win-x64.7z
-makemica micasetup.json
+"%MAKEMICA%" micasetup.json
 if errorlevel 1 exit /b 1
 
 rename publish.7z TiktokLiveRec_v%version%_win-x64.7z
