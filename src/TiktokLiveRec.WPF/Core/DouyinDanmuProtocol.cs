@@ -11,8 +11,20 @@ internal sealed class DouyinResponse
     [ProtoMember(2)]
     public string Cursor { get; set; } = string.Empty;
 
+    [ProtoMember(3)]
+    public ulong FetchInterval { get; set; }
+
+    [ProtoMember(4)]
+    public ulong Now { get; set; }
+
     [ProtoMember(5)]
     public string InternalExt { get; set; } = string.Empty;
+
+    [ProtoMember(6)]
+    public uint FetchType { get; set; }
+
+    [ProtoMember(7)]
+    public Dictionary<string, string> RouteParams { get; set; } = [];
 
     [ProtoMember(8)]
     public ulong HeartbeatDuration { get; set; }
@@ -22,6 +34,12 @@ internal sealed class DouyinResponse
 
     [ProtoMember(10)]
     public string PushServer { get; set; } = string.Empty;
+
+    [ProtoMember(11)]
+    public string LiveCursor { get; set; } = string.Empty;
+
+    [ProtoMember(12)]
+    public bool HistoryNoMore { get; set; }
 }
 
 [ProtoContract]
@@ -35,6 +53,21 @@ internal sealed class DouyinInnerMessage
 
     [ProtoMember(3)]
     public long MsgId { get; set; }
+
+    [ProtoMember(4)]
+    public int MsgType { get; set; }
+
+    [ProtoMember(5)]
+    public long Offset { get; set; }
+
+    [ProtoMember(6)]
+    public bool NeedWrdsStore { get; set; }
+
+    [ProtoMember(7)]
+    public long WrdsVersion { get; set; }
+
+    [ProtoMember(8)]
+    public string WrdsSubKey { get; set; } = string.Empty;
 }
 
 [ProtoContract]
@@ -72,11 +105,38 @@ internal sealed class DouyinClientFrame
 [ProtoContract]
 internal sealed class DouyinCommon
 {
+    [ProtoMember(1)]
+    public string Method { get; set; } = string.Empty;
+
+    [ProtoMember(2)]
+    public ulong MsgId { get; set; }
+
+    [ProtoMember(3)]
+    public ulong RoomId { get; set; }
+
     [ProtoMember(4)]
     public ulong CreateTime { get; set; }
 
+    [ProtoMember(5)]
+    public uint Monitor { get; set; }
+
+    [ProtoMember(6)]
+    public bool IsShowMsg { get; set; }
+
     [ProtoMember(7)]
     public string Describe { get; set; } = string.Empty;
+
+    [ProtoMember(9)]
+    public ulong FoldType { get; set; }
+
+    [ProtoMember(10)]
+    public ulong AnchorFoldType { get; set; }
+
+    [ProtoMember(11)]
+    public ulong PriorityScore { get; set; }
+
+    [ProtoMember(15)]
+    public DouyinUser? User { get; set; }
 }
 
 [ProtoContract]
@@ -91,8 +151,52 @@ internal sealed class DouyinChatMessage
     [ProtoMember(3)]
     public string Content { get; set; } = string.Empty;
 
+    [ProtoMember(15)]
+    public ulong EventTime { get; set; }
+
     [ProtoMember(22)]
     public DouyinText? RtfContent { get; set; }
+}
+
+[ProtoContract]
+internal sealed class DouyinGiftInfo
+{
+    [ProtoMember(1)]
+    public ulong GiftId { get; set; }
+
+    [ProtoMember(2)]
+    public DouyinImage? GiftIcon { get; set; }
+
+    [ProtoMember(3)]
+    public ulong DiamondCount { get; set; }
+}
+
+[ProtoContract]
+internal sealed class DouyinLightGiftMessage
+{
+    [ProtoMember(1)]
+    public DouyinCommon? Common { get; set; }
+
+    [ProtoMember(2)]
+    public ulong GroupCount { get; set; }
+
+    [ProtoMember(3)]
+    public ulong RepeatCount { get; set; }
+
+    [ProtoMember(4)]
+    public ulong ComboCount { get; set; }
+
+    [ProtoMember(5)]
+    public ulong UserId { get; set; }
+
+    [ProtoMember(7)]
+    public DouyinGiftInfo? GiftInfo { get; set; }
+
+    [ProtoMember(10)]
+    public ulong Count { get; set; }
+
+    [ProtoMember(13)]
+    public DouyinGiftStruct? Gift { get; set; }
 }
 
 [ProtoContract]
@@ -242,6 +346,9 @@ internal sealed class DouyinControlMessage
 [ProtoContract]
 internal sealed class DouyinUser
 {
+    [ProtoMember(1)]
+    public ulong Id { get; set; }
+
     [ProtoMember(3)]
     public string NickName { get; set; } = string.Empty;
 

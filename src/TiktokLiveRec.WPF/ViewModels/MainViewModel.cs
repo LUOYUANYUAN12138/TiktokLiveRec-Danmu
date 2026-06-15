@@ -516,17 +516,16 @@ public partial class MainViewModel : ReactiveObject, IDisposable
     }
 
     [RelayCommand]
-    private async Task PlayRecordAsync()
+    private void PlayRecord()
     {
         if (SelectedItem == null || string.IsNullOrWhiteSpace(SelectedItem.RoomUrl))
         {
             return;
         }
 
-        if (GlobalMonitor.RoomStatus.TryGetValue(SelectedItem.RoomUrl, out RoomStatus? roomStatus)
-         && File.Exists(roomStatus.Recorder.FileName))
+        if (GlobalMonitor.RoomStatus.TryGetValue(SelectedItem.RoomUrl, out RoomStatus? roomStatus))
         {
-            await Player.PlayAsync(roomStatus.Recorder.FileName, isSeekable: roomStatus.RecordStatus == RecordStatus.Recording);
+            LivePreviewManager.ShowOrActivate(roomStatus);
         }
         else
         {
@@ -699,6 +698,22 @@ public partial class MainViewModel : ReactiveObject, IDisposable
         if (isVisible)
         {
             DanmuLogWriter.Instance.Enqueue(message);
+        }
+
+        if (message.IsGift)
+        {
+            try
+            {
+                string debugDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "TiktokLiveRec", "debug_proto");
+                Directory.CreateDirectory(debugDir);
+                bool isSelected = SelectedDanmuRoom?.RoomUrl == message.RoomUrl;
+                File.AppendAllText(Path.Combine(debugDir, "gift_trace.log"),
+                    $"[{DateTimeOffset.Now:HH:mm:ss.fff}] [ViewModel] room={message.RoomUrl} " +
+                    $"isVisible={isVisible} ShowDanmuGift={ShowDanmuGift} " +
+                    $"isSelectedRoom={isSelected} selectedRoom={SelectedDanmuRoom?.RoomUrl} " +
+                    $"GiftName={message.GiftName} User={message.UserName}{Environment.NewLine}");
+            }
+            catch { }
         }
 
         ApplicationDispatcher.BeginInvoke(() =>

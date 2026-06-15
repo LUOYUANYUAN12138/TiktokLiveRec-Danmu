@@ -407,31 +407,71 @@
                                                     <TextBlock Margin="8,0,0,0" FontSize="11" Opacity="0.55" Text="{Binding TimestampText}" />
                                                     <TextBlock Margin="8,0,0,0" FontSize="11" Opacity="0.5" Text="{Binding Method}" />
                                                 </StackPanel>
-                                                <TextBlock Margin="0,2,0,0"
-                                                           Opacity="0.92"
-                                                           Text="{Binding DisplayText}"
-                                                           TextWrapping="WrapWithOverflow">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsGift}" Value="True">
-                                                                    <Setter Property="Foreground" Value="#C68A00" />
-                                                                    <Setter Property="FontWeight" Value="SemiBold" />
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding IsSecondary}" Value="True">
-                                                                    <Setter Property="Opacity" Value="0.6" />
-                                                                    <Setter Property="FontSize" Value="11" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
+                                                <Grid Margin="0,2,0,0">
+                                                    <TextBlock Opacity="0.92"
+                                                               Text="{Binding DisplayText}"
+                                                               TextWrapping="WrapWithOverflow">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsGift}" Value="True">
+                                                                        <Setter Property="Foreground" Value="#C68A00" />
+                                                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding IsSecondary}" Value="True">
+                                                                        <Setter Property="Opacity" Value="0.6" />
+                                                                        <Setter Property="FontSize" Value="11" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding HasSegments}" Value="True">
+                                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                    <ItemsControl ItemsSource="{Binding Segments}"
+                                                                  Visibility="{Binding HasSegments, Converter={x:Static c:BoolToVisibilityConverter.Instance}}">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <WrapPanel Orientation="Horizontal" />
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Grid VerticalAlignment="Center">
+                                                                    <TextBlock Opacity="0.92"
+                                                                               Text="{Binding Text}"
+                                                                               VerticalAlignment="Center">
+                                                                        <TextBlock.Style>
+                                                                            <Style TargetType="TextBlock">
+                                                                                <Setter Property="Visibility" Value="Visible" />
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding IsImage}" Value="True">
+                                                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </TextBlock.Style>
+                                                                    </TextBlock>
+                                                                    <Image Width="20"
+                                                                           Height="20"
+                                                                           Margin="2,0"
+                                                                           VerticalAlignment="Center"
+                                                                           Source="{Binding ImageUrl}"
+                                                                           ToolTip="{Binding ImageName}"
+                                                                           Visibility="{Binding IsImage, Converter={x:Static c:BoolToVisibilityConverter.Instance}}" />
+                                                                </Grid>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </Grid>
                                             </StackPanel>
                                             <StackPanel Grid.Column="2"
                                                         Orientation="Horizontal"
                                                         VerticalAlignment="Center"
-                                                        Visibility="{Binding IsGift, Converter={x:Static c:BoolToVisibilityConverter.Instance}}">
+                                                        Visibility="{Binding HasIcon, Converter={x:Static c:BoolToVisibilityConverter.Instance}}">
                                                 <Image Width="20"
                                                        Height="20"
                                                        Margin="0,0,6,0"

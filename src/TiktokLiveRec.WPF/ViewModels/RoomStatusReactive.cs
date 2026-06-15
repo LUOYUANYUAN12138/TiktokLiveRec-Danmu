@@ -143,12 +143,11 @@ public partial class RoomStatusReactive : ReactiveObject
     }
 
     [RelayCommand]
-    private async Task PlayRecordAsync()
+    private void PlayRecord()
     {
-        if (GlobalMonitor.RoomStatus.TryGetValue(RoomUrl, out RoomStatus? roomStatus)
-         && File.Exists(roomStatus.Recorder.FileName))
+        if (GlobalMonitor.RoomStatus.TryGetValue(RoomUrl, out RoomStatus? roomStatus))
         {
-            await Player.PlayAsync(roomStatus.Recorder.FileName, isSeekable: roomStatus.RecordStatus == RecordStatus.Recording);
+            LivePreviewManager.ShowOrActivate(roomStatus);
         }
         else
         {

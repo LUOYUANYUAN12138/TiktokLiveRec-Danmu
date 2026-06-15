@@ -182,7 +182,7 @@
     <value>打開設置 (&amp;S)</value>
   </data>
   <data name="PlayerErrorOfNoFile" xml:space="preserve">
-    <value>沒有可播放的錄製文件</value>
+    <value>目前沒有可預覽的直播流</value>
   </data>
   <data name="ProxyErrorOfEmptyUrl" xml:space="preserve">
     <value>代理 URL 不能為空</value>
@@ -248,7 +248,7 @@
     <value>移除直播間</value>
   </data>
   <data name="PlayRecord" xml:space="preserve">
-    <value>播放錄製</value>
+    <value>直播預覽</value>
   </data>
   <data name="StopRecord" xml:space="preserve">
     <value>停止錄製</value>
@@ -281,7 +281,7 @@
     <value>操作</value>
   </data>
   <data name="ButtonOfPlay" xml:space="preserve">
-    <value>播放</value>
+    <value>預覽</value>
   </data>
   <data name="ButtonOfGoto" xml:space="preserve">
     <value>進入</value>
@@ -368,7 +368,7 @@
     <value>打開目錄</value>
   </data>
   <data name="PlayRecordHint" xml:space="preserve">
-    <value>支持播放錄製中的視頻</value>
+    <value>在軟體內嵌視窗中預覽目前直播畫面</value>
   </data>
   <data name="Player" xml:space="preserve">
     <value>播放器</value>

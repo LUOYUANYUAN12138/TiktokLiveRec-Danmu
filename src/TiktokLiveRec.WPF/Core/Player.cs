@@ -9,6 +9,20 @@ namespace TiktokLiveRec.Core;
 
 public sealed class Player
 {
+    private static readonly string[] ToolRelativeRoots =
+    [
+        string.Empty,
+        "build",
+        Path.Combine("resources", "backend"),
+    ];
+
+    private static readonly string[] FfplayRelativePaths =
+    [
+        "ffplay.exe",
+        Path.Combine("build", "ffplay.exe"),
+        Path.Combine("resources", "backend", "ffplay.exe"),
+    ];
+
     /// <summary>
     /// Method to play video/audio file use 3rd party player.
     /// </summary>
@@ -37,7 +51,7 @@ public sealed class Player
         {
             isFFplay = true;
 
-            playerPath = SearchFileHelper.SearchFiles(".", "ffplay[/.exe]").FirstOrDefault();
+            playerPath = ResolveFfplayPath();
 
             if (isSeekable)
             {
@@ -133,5 +147,72 @@ public sealed class Player
                 return;
             }
         }
+    }
+
+    internal static string? ResolveFfplayPath()
+    {
+        return ResolveToolPath("ffplay.exe", FfplayRelativePaths);
+    }
+
+    internal static string? ResolveFfprobePath()
+    {
+        return ResolveToolPath("ffprobe.exe");
+    }
+
+    internal static string? ResolveFfmpegPath()
+    {
+        return ResolveToolPath("ffmpeg.exe");
+    }
+
+    private static string? ResolveToolPath(string fileName, string[]? explicitCandidates = null)
+    {
+        string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+
+        if (explicitCandidates != null)
+        {
+            foreach (string relativePath in explicitCandidates)
+            {
+                string candidate = Path.GetFullPath(Path.Combine(baseDirectory, relativePath));
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+        }
+        else
+        {
+            foreach (string root in ToolRelativeRoots)
+            {
+                string candidate = Path.GetFullPath(Path.Combine(baseDirectory, root, fileName));
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        string? pathEnvironment = Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrWhiteSpace(pathEnvironment))
+        {
+            return null;
+        }
+
+        foreach (string pathEntry in pathEnvironment.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            try
+            {
+                string candidate = Path.Combine(pathEntry, fileName);
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+            catch
+            {
+                // Ignore invalid PATH entries and continue resolving next candidate.
+            }
+        }
+
+        return null;
     }
 }

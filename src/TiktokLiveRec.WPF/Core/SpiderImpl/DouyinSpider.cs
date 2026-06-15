@@ -121,8 +121,7 @@ public sealed partial class DouyinSpider : ISpider
         match = AvatarThumbUrlRegex.Match(htmlStr);
         if (match.Success)
         {
-            result.AvatarThumbUrl = match.Groups[1].Value
-                .Replace("\\u0026", "&");
+            result.AvatarThumbUrl = NormalizeExtractedUrl(match.Groups[1].Value);
         }
 
         if (result.IsLiveStreaming == false)
@@ -133,8 +132,7 @@ public sealed partial class DouyinSpider : ISpider
         match = HlsPullUrlMapRegex.Match(htmlStr);
         if (match.Success)
         {
-            result.HlsUrl = match.Groups[1].Value
-                .Replace("\\u0026", "&");
+            result.HlsUrl = NormalizeExtractedUrl(match.Groups[1].Value);
         }
 
         if (string.IsNullOrWhiteSpace(result.HlsUrl))
@@ -142,19 +140,37 @@ public sealed partial class DouyinSpider : ISpider
             match = HlsPullUrlFallbackRegex.Match(htmlStr);
             if (match.Success)
             {
-                result.HlsUrl = match.Groups[1].Value
-                    .Replace("\\u0026", "&");
+                result.HlsUrl = NormalizeExtractedUrl(match.Groups[1].Value);
             }
         }
 
         match = FlvPullUrlFallbackRegex.Match(htmlStr);
         if (match.Success)
         {
-            result.FlvUrl = match.Groups[1].Value
-                .Replace("\\u0026", "&");
+            result.FlvUrl = NormalizeExtractedUrl(match.Groups[1].Value);
         }
 
         return result;
+    }
+
+    private static string NormalizeExtractedUrl(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        string normalized = value
+            .Replace("\\u0026", "&", StringComparison.Ordinal)
+            .Replace("\\/", "/", StringComparison.Ordinal)
+            .Trim();
+
+        if (normalized.StartsWith("//", StringComparison.Ordinal))
+        {
+            return $"https:{normalized}";
+        }
+
+        return normalized;
     }
 
     [GeneratedRegex("\\\\\"nickname\\\\\":\\\\\"([^\\\"]+)\\\\\",\\\\\"avatar_thumb")]

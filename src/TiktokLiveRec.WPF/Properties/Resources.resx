@@ -134,7 +134,7 @@
     <value>Exit (&amp;E)</value>
   </data>
   <data name="PlayerErrorOfNoFile" xml:space="preserve">
-    <value>No playable recording file</value>
+    <value>No live stream is available for preview</value>
   </data>
   <data name="SureRemoveRoom" xml:space="preserve">
     <value>Delete {0} live room?</value>
@@ -248,7 +248,7 @@
     <value>Remove Room</value>
   </data>
   <data name="PlayRecord" xml:space="preserve">
-    <value>Play Recording</value>
+    <value>Live Preview</value>
   </data>
   <data name="StopRecord" xml:space="preserve">
     <value>Stop Recording</value>
@@ -281,7 +281,7 @@
     <value>Operation</value>
   </data>
   <data name="ButtonOfPlay" xml:space="preserve">
-    <value>Play</value>
+    <value>Preview</value>
   </data>
   <data name="ButtonOfGoto" xml:space="preserve">
     <value>Goto</value>
@@ -368,7 +368,7 @@
     <value>Open Folder</value>
   </data>
   <data name="PlayRecordHint" xml:space="preserve">
-    <value>Support to play the recording videos</value>
+    <value>Preview the current live stream in an embedded window</value>
   </data>
   <data name="Player" xml:space="preserve">
     <value>Player</value>

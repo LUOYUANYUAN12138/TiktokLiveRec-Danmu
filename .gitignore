@@ -178,3 +178,10 @@ UpgradeLog*.txt
 
 # Rider
 .idea/
+
+# Local AI/code-analysis tooling (not part of the project)
+.codegraph/
+.omc/
+AGENTS.md
+CLEANUP_RECORD.md
+

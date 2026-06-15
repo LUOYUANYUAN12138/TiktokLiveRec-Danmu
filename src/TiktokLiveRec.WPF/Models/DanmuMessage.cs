@@ -49,6 +49,17 @@ public sealed class DanmuGiftInfo
     public string? Price { get; set; }
 }
 
+public sealed class DanmuInlineSegment
+{
+    public bool IsImage { get; set; }
+
+    public string? Text { get; set; }
+
+    public string? ImageUrl { get; set; }
+
+    public string? ImageName { get; set; }
+}
+
 public sealed class DanmuMessage
 {
     public string RoomUrl { get; set; } = string.Empty;
@@ -75,13 +86,21 @@ public sealed class DanmuMessage
 
     public DateTimeOffset RawTimestamp { get; set; } = DateTimeOffset.Now;
 
+    public ulong? CreateTimeRaw { get; set; }
+
     public string DisplayText { get; set; } = string.Empty;
 
     public DanmuUserInfo? User { get; set; }
 
     public DanmuGiftInfo? Gift { get; set; }
 
+    public List<DanmuInlineSegment>? Segments { get; set; }
+
     public bool IsGift => Method == DanmuMessageMethod.Gift;
+
+    public bool HasIcon => !string.IsNullOrWhiteSpace(GiftIconUrl);
+
+    public bool HasSegments => Segments != null && Segments.Count > 0;
 
     public bool IsSecondary => Method is DanmuMessageMethod.RoomRank or DanmuMessageMethod.RoomStats or DanmuMessageMethod.RoomUserSeq;
 
@@ -96,6 +115,7 @@ public sealed class DanmuMessage
             ? string.Empty
             : $" 礼物={GiftName} 数量={GiftCount ?? "1"} 价格={GiftPrice ?? string.Empty} 图标={GiftIconUrl ?? string.Empty}";
         string content = string.IsNullOrWhiteSpace(Content) ? string.Empty : $" 内容={Content}";
-        return $"{header}{user}{avatar}{gift}{content}".TrimEnd();
+        string debug = CreateTimeRaw.HasValue ? $" [ctime={CreateTimeRaw}]" : string.Empty;
+        return $"{header}{user}{avatar}{gift}{content}{debug}".TrimEnd();
     }
 }
